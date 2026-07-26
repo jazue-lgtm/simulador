@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simulador de Examen · Física General UNEMI</title>
+<style>
+  :root{
+    --bg: #0b1220;
+    --panel: #101a2c;
+    --panel-2: #14213a;
+    --line: #24334f;
+    --text: #e8edf7;
+    --muted: #8ea0c0;
+    --amber: #ffb454;
+    --amber-dim: #7a5a2a;
+    --green: #59d499;
+    --red: #ff6b6b;
+    --blue: #4fa3ff;
+    --font-display: 'Courier New', ui-monospace, monospace;
+    --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(circle at 15% 0%, #16213a 0%, transparent 45%),
+      radial-gradient(circle at 100% 100%, #132038 0%, transparent 45%),
+      var(--bg);
+    color:var(--text);
+    font-family:var(--font-body);
+    min-height:100vh;
+    padding:32px 18px 80px;
+  }
+  .wrap{max-width:820px;margin:0 auto;}
+
+  header{
+    position:relative;
+    padding:28px 26px;
+    border:1px solid var(--line);
+    border-radius:6px;
+    background:linear-gradient(180deg,var(--panel),var(--panel-2));
+    overflow:hidden;
+    margin-bottom:26px;
+  }
+  header::before{
+    content:'';
+    position:absolute; inset:0;
+    background-image:
+      linear-gradient(90deg, rgba(255,180,84,0.06) 1px, transparent 1px),
+      linear-gradient(0deg, rgba(255,180,84,0.06) 1px, transparent 1px);
+    background-size:26px 26px;
+    pointer-events:none;
+  }
+  .eyebrow{
+    font-family:var(--font-display);
+    font-size:12px;
+    letter-spacing:2.5px;
+    color:var(--amber);
+    text-transform:uppercase;
+    position:relative;
+  }
+  h1{
+    font-size:clamp(24px,4vw,32px);
+    margin:8px 0 6px;
+    letter-spacing:-0.3px;
+    position:relative;
+  }
+  .sub{color:var(--muted); font-size:14.5px; position:relative;}
+
+  .meta-bar{
+    display:flex; justify-content:space-between; align-items:center;
+    margin:22px 0 10px; font-family:var(--font-display); font-size:12.5px; color:var(--muted);
+  }
+  .track{
+    height:6px; background:#0d1626; border:1px solid var(--line); border-radius:3px; overflow:hidden;
+    margin-bottom:26px;
+  }
+  .fill{height:100%; background:linear-gradient(90deg,var(--blue),var(--amber)); width:0%; transition:width .35s ease;}
+
+  .card{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:6px;
+    padding:26px;
+    margin-bottom:18px;
+    display:none;
+    animation:fadein .3s ease;
+  }
+  .card.active{display:block;}
+  @keyframes fadein{from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);}}
+
+  .tag{
+    display:inline-block;
+    font-family:var(--font-display);
+    font-size:11px;
+    letter-spacing:1.5px;
+    color:var(--amber);
+    border:1px solid var(--amber-dim);
+    padding:3px 8px;
+    border-radius:3px;
+    margin-bottom:14px;
+    text-transform:uppercase;
+  }
+  .qtext{font-size:17px; line-height:1.5; margin-bottom:18px; font-weight:600;}
+
+  .options{display:flex; flex-direction:column; gap:10px;}
+  .opt{
+    text-align:left;
+    background:var(--panel-2);
+    border:1px solid var(--line);
+    color:var(--text);
+    padding:13px 16px;
+    border-radius:5px;
+    font-size:14.5px;
+    cursor:pointer;
+    transition:border-color .15s, background .15s, transform .1s;
+    display:flex; gap:10px; align-items:flex-start;
+  }
+  .opt:hover{border-color:var(--blue); background:#182742;}
+  .opt .letter{
+    font-family:var(--font-display); color:var(--muted); flex-shrink:0;
+    width:18px;
+  }
+  .opt.correct{border-color:var(--green); background:rgba(89,212,153,0.1);}
+  .opt.wrong{border-color:var(--red); background:rgba(255,107,107,0.1);}
+  .opt.disabled{cursor:default; pointer-events:none;}
+  .opt.disabled:hover{transform:none;}
+
+  .feedback{
+    margin-top:16px; padding:16px 18px; border-radius:5px; font-size:13.8px; line-height:1.75;
+    border-left:3px solid var(--amber); background:#0d1626; display:none;
+  }
+  .feedback.show{display:block;}
+  .feedback .verdict{font-weight:700; margin-bottom:6px; display:block;}
+  .feedback .verdict.ok{color:var(--green);}
+  .feedback .verdict.bad{color:var(--red);}
+  .feedback .why-title{color:var(--amber); font-weight:600; display:block; margin-top:10px;}
+
+  .nav-row{display:flex; justify-content:flex-end; margin-top:18px;}
+  .next-btn{
+    font-family:var(--font-display);
+    background:var(--amber); color:#231604; border:none;
+    padding:11px 22px; border-radius:4px; font-size:13px; letter-spacing:1px;
+    cursor:pointer; opacity:0; pointer-events:none; transition:opacity .2s;
+    text-transform:uppercase;
+  }
+  .next-btn.show{opacity:1; pointer-events:auto;}
+  .next-btn:hover{background:#ffc978;}
+
+  .resistor-wrap{display:flex; justify-content:center; margin:6px 0 22px;}
+  .resistor{display:flex; align-items:center; gap:0;}
+  .lead{width:34px; height:4px; background:#5b6c8c;}
+  .body-r{
+    width:150px; height:38px; background:#d9c9a3; border-radius:8px;
+    display:flex; align-items:center; justify-content:space-evenly;
+    box-shadow:inset 0 -6px 10px rgba(0,0,0,0.18), inset 0 4px 6px rgba(255,255,255,0.25);
+  }
+  .band{width:11px; height:38px;}
+
+  .screen{
+    background:var(--panel); border:1px solid var(--line); border-radius:6px;
+    padding:36px 28px; text-align:center;
+  }
+  .screen h2{font-size:22px; margin-bottom:10px;}
+  .screen p{color:var(--muted); font-size:14.5px; line-height:1.6; max-width:480px; margin:0 auto 24px;}
+  .start-btn{
+    font-family:var(--font-display);
+    background:var(--amber); color:#231604; border:none;
+    padding:14px 32px; border-radius:4px; font-size:14px; letter-spacing:1.5px;
+    cursor:pointer; text-transform:uppercase;
+  }
+  .start-btn:hover{background:#ffc978;}
+
+  .score-big{font-family:var(--font-display); font-size:64px; font-weight:bold; margin:6px 0;}
+  .score-big.pass{color:var(--green);}
+  .score-big.fail{color:var(--red);}
+  .score-label{color:var(--muted); font-size:13px; letter-spacing:2px; text-transform:uppercase;}
+
+  .stats-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin:26px 0;}
+  .stat{background:var(--panel-2); border:1px solid var(--line); border-radius:5px; padding:16px 8px;}
+  .stat .num{font-family:var(--font-display); font-size:22px; font-weight:bold;}
+  .stat .lab{font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:1px; margin-top:4px;}
+
+  .review{text-align:left; margin-top:26px; border-top:1px dashed var(--line); padding-top:20px;}
+  .review-item{padding:12px 0; border-bottom:1px solid var(--line); font-size:13.5px;}
+  .review-item:last-child{border-bottom:none;}
+  .review-item .rq{font-weight:600; margin-bottom:4px;}
+  .review-item .ryour{color:var(--red);}
+  .review-item .rcorrect{color:var(--green);}
+  .review-item.ok .rq::before{content:'✓ '; color:var(--green);}
+  .review-item.bad .rq::before{content:'✗ '; color:var(--red);}
+
+  .restart-btn{
+    margin-top:24px;
+    font-family:var(--font-display);
+    background:transparent; color:var(--amber); border:1px solid var(--amber-dim);
+    padding:11px 22px; border-radius:4px; font-size:12.5px; letter-spacing:1px;
+    cursor:pointer; text-transform:uppercase;
+  }
+  .restart-btn:hover{border-color:var(--amber);}
+
+  footer{text-align:center; color:var(--muted); font-size:11.5px; margin-top:34px; font-family:var(--font-display); letter-spacing:1px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="eyebrow">UNEMI · Ingeniería de Software · Física General</div>
+    <h1>Simulador de Examen y Recuperación</h1>
+    <div class="sub">Banco de preguntas oficial + preguntas adicionales de código de colores de resistencias, con explicaciones detalladas.</div>
+  </header>
+
+  <div id="startScreen" class="screen">
+    <h2>¿Listo para simular el examen?</h2>
+    <p>Incluye cinemática, dinámica, torque, calorimetría, electricidad y lectura de resistencias por código de colores (con imagen de la resistencia). Cada respuesta trae una explicación extendida de por qué es correcta y por qué las demás no lo son. Las preguntas salen en orden aleatorio en cada intento.</p>
+    <button class="start-btn" onclick="startQuiz()">Iniciar simulacro</button>
+  </div>
+
+  <div id="quizArea" style="display:none;">
+    <div class="meta-bar">
+      <span id="progressText">Pregunta 1 de 1</span>
+      <span id="scoreText">Puntaje: 0</span>
+    </div>
+    <div class="track"><div class="fill" id="fillBar"></div></div>
+    <div id="cardsHost"></div>
+  </div>
+
+  <div id="resultScreen" class="screen" style="display:none;"></div>
+
+  <footer>UNEMI · FACULTAD DE CIENCIAS E INGENIERÍA · FÍSICA</footer>
+</div>
+
+<script>
+// ---------------------------------------------------------------
+// BANCO DE PREGUNTAS
+// ---------------------------------------------------------------
+const questions = [
+  {
+    tag:"Cinemática",
+    q:"¿Qué elementos son indispensables para definir un sistema de referencia en cinemática?",
+    options:["Únicamente un cronómetro y un objeto en movimiento.","Un punto de referencia, ejes de coordenadas y un origen temporal.","Solamente un plano cartesiano.","Un instrumento para medir la rapidez."],
+    correct:1,
+    exp:"Un sistema de referencia debe permitir ubicar un cuerpo en el espacio y saber cuándo ocurre cada posición. Por eso se necesitan tres cosas a la vez: un punto de origen espacial, un conjunto de ejes de coordenadas para medir distancias en cada dirección, y un origen temporal (t = 0) desde el cual se cuenta el tiempo. Sin los ejes no se puede describir la dirección del movimiento; sin el origen temporal no se puede saber en qué instante ocurre cada posición. Las otras opciones fallan porque son incompletas: un cronómetro y un objeto en movimiento (a) no bastan porque falta el marco espacial; un plano cartesiano solo (c) no define el origen temporal; y un instrumento para medir rapidez (d) mide una magnitud, no define el sistema de referencia en sí."
+  },
+  {
+    tag:"Termodinámica",
+    q:"¿Cómo se denomina el fenómeno por el cual un cuerpo aumenta sus dimensiones al incrementar su temperatura?",
+    options:["Conducción térmica.","Dilatación térmica.","Radiación térmica.","Compresión térmica."],
+    correct:1,
+    exp:"La dilatación térmica ocurre porque, al absorber calor, las moléculas del cuerpo vibran con mayor amplitud y en promedio se alejan más entre sí, lo que se traduce en un aumento medible de longitud, área o volumen. Conducción (a) y radiación (c) son formas de transferencia de calor entre cuerpos o medios, no cambios de tamaño. 'Compresión térmica' (d) ni siquiera es un concepto físico estándar: no describe ningún fenómeno reconocido, es un distractor."
+  },
+  {
+    tag:"Trabajo y Energía",
+    q:"En un movimiento circular uniforme (MCU), ¿qué trabajo realiza la fuerza centrípeta sobre el objeto?",
+    options:["Trabajo positivo, porque mantiene al objeto en movimiento.","Trabajo negativo, porque se opone a la velocidad.","Trabajo cero, porque es perpendicular al desplazamiento instantáneo.","Trabajo variable, porque depende de la masa."],
+    correct:2,
+    exp:"El trabajo mecánico se calcula como W = F·d·cos(θ), donde θ es el ángulo entre la fuerza y el desplazamiento. En el MCU la fuerza centrípeta siempre apunta hacia el centro de la trayectoria, mientras que el desplazamiento instantáneo es tangente a la circunferencia; esto significa que ambos vectores forman un ángulo de 90° en todo momento. Como cos(90°) = 0, el trabajo es exactamente cero en cada instante, no solo en promedio. Por eso la rapidez del objeto no cambia en un MCU: la fuerza centrípeta cambia la dirección de la velocidad, pero no le transfiere ni le quita energía cinética. Las opciones (a) y (b) asumen erróneamente que la fuerza tiene una componente en la dirección del movimiento, y (d) confunde el concepto con la segunda ley de Newton (F=ma), que sí depende de la masa, pero el trabajo en este caso no depende de ella porque es cero independientemente de m."
+  },
+  {
+    tag:"Electricidad",
+    q:"¿Qué principio establece que la carga eléctrica total de un sistema aislado permanece constante?",
+    options:["Ley de Coulomb.","Principio de conservación de la energía.","Principio de conservación de la carga eléctrica.","Ley de Ohm."],
+    correct:2,
+    exp:"El principio de conservación de la carga eléctrica es un postulado fundamental del electromagnetismo: en un sistema aislado (sin intercambio de partículas con el exterior) la carga neta no cambia, aunque sí puede redistribuirse entre los cuerpos que lo componen, por ejemplo al frotar dos materiales o al conectar conductores. La Ley de Coulomb (a) describe la fuerza entre dos cargas puntuales, no su conservación. El principio de conservación de la energía (b) es un concepto distinto, aplicable a energía, no a carga. La Ley de Ohm (d) relaciona voltaje, corriente y resistencia (V=IR) y no tiene relación directa con la conservación de carga."
+  },
+  {
+    tag:"Dinámica",
+    q:"¿Cuál de los siguientes pares representa correctamente fuerzas de acción y reacción según la tercera ley de Newton?",
+    options:["El peso de una persona y la fricción que actúa sobre ella.","La normal de una mesa y el peso de un objeto sobre ella.","La Tierra atrae a una pelota y la pelota atrae a la Tierra con fuerzas iguales y opuestas.","Una rueda empuja el suelo y el aire ejerce fricción sobre la rueda."],
+    correct:2,
+    exp:"Un verdadero par acción-reacción de la tercera ley de Newton debe cumplir dos condiciones: actuar sobre dos cuerpos distintos y ser de la misma naturaleza física. La atracción gravitatoria entre la Tierra y la pelota cumple ambas: son dos fuerzas gravitatorias, de igual magnitud y sentido opuesto, cada una actuando sobre un cuerpo diferente (la Tierra atrae a la pelota, y la pelota atrae a la Tierra con la misma intensidad). Las opciones (a), (b) y (d) son errores clásicos: parecen pares porque son fuerzas opuestas, pero en realidad actúan sobre el mismo cuerpo (el peso y la normal, por ejemplo, actúan ambos sobre el objeto apoyado en la mesa) o son de naturaleza distinta (gravitatoria vs. fricción), por lo que no constituyen pares de Newton aunque a veces se cancelen numéricamente."
+  },
+  {
+    tag:"Dinámica",
+    q:"¿Cuál de las siguientes es una fuerza de acción a distancia?",
+    options:["La normal.","La gravitatoria.","La fricción cinética.","La tensión en una cuerda."],
+    correct:1,
+    exp:"Las fuerzas se clasifican en fuerzas de contacto (requieren que los cuerpos se toquen físicamente) y fuerzas de campo o a distancia (actúan sin contacto directo, mediadas por un campo). La fuerza gravitatoria es el ejemplo clásico: la Tierra atrae a la Luna sin tocarla, a través del campo gravitatorio. La normal (a), la fricción cinética (c) y la tensión (d) son todas fuerzas de contacto, ya que necesitan superficies o cuerdas físicamente en contacto con el objeto para poder ejercerse."
+  },
+  {
+    tag:"Electricidad",
+    q:"Una lámpara de 60 Ω conectada a un voltaje de 120 V consume una corriente de:",
+    options:["2 A","3 A","0.5 A","1 A"],
+    correct:0,
+    exp:"Se aplica la Ley de Ohm: I = V / R. Sustituyendo los valores dados, I = 120 V / 60 Ω = 2 A. Las demás opciones corresponden a errores comunes de cálculo: 3 A se obtendría si se dividiera mal (por ejemplo usando R=40), 0.5 A resultaría de invertir la fracción (60/120), y 1 A no corresponde a ninguna operación coherente con estos datos. Siempre conviene verificar unidades: V en voltios, R en ohmios, da I en amperios."
+  },
+  {
+    tag:"Torque",
+    q:"Si un objeto en rotación está en equilibrio rotacional, ¿qué se puede decir del torque resultante que actúa sobre él?",
+    options:["Cambia en dirección pero no en magnitud.","Es igual a la velocidad angular.","Es cero.","Es constante y diferente de cero."],
+    correct:2,
+    exp:"El equilibrio rotacional es análogo al equilibrio traslacional: así como un cuerpo en equilibrio de traslación tiene fuerza neta cero, un cuerpo en equilibrio rotacional tiene torque neto cero (Στ = 0). Esto no significa que no actúen torques individuales sobre el cuerpo, sino que la suma vectorial de todos ellos se anula, por lo que la velocidad angular del objeto permanece constante (puede incluso ser cero, es decir, en reposo rotacional). La opción (b) confunde torque con velocidad angular, que son magnitudes físicas distintas con unidades diferentes (N·m vs rad/s). La opción (d) contradice directamente la definición de equilibrio."
+  },
+  {
+    tag:"Electricidad",
+    q:"El voltímetro es un instrumento de medición que se conecta en:",
+    options:["Diagonal al circuito.","Serie con el elemento.","Paralelo con el elemento a medir.","Sin conexión a tierra."],
+    correct:2,
+    exp:"El voltímetro mide la diferencia de potencial (voltaje) entre dos puntos de un circuito. Para medir esa diferencia sin alterar el funcionamiento del circuito, debe conectarse en paralelo con el elemento cuyo voltaje se quiere medir, y debe tener una resistencia interna muy alta (idealmente infinita) para que casi no circule corriente por él y no desvíe la corriente principal. Si se conectara en serie (b), interrumpiría el circuito y alteraría drásticamente la corriente que fluye, dando una lectura incorrecta o incluso dañando el instrumento. 'Diagonal' (a) no es un tipo de conexión eléctrica válido, y la conexión a tierra (d) es un tema distinto relacionado con seguridad eléctrica, no con la forma de medir voltaje."
+  },
+  {
+    tag:"Trabajo y Energía",
+    q:"¿Qué sucede con el trabajo mecánico cuando se aplica una fuerza sobre un objeto pero no se produce desplazamiento?",
+    options:["No se realiza trabajo (es cero).","El objeto se acelera constantemente.","La energía potencial aumenta al máximo.","Se realiza trabajo, pero no se puede calcular."],
+    correct:0,
+    exp:"Por definición, el trabajo mecánico es W = F·d·cos(θ). Si el desplazamiento d es igual a cero (el objeto no se mueve, por ejemplo al empujar una pared que no cede), el producto completo es cero sin importar cuán grande sea la fuerza aplicada. Esto es contraintuitivo para muchos estudiantes porque en el lenguaje cotidiano 'trabajar' implica esfuerzo físico, pero en física el trabajo requiere desplazamiento. Por eso (b) y (c) son incorrectas: no hay ninguna relación automática entre aplicar una fuerza sin desplazamiento y una aceleración o un cambio de energía potencial. La opción (d) es incorrecta porque el trabajo sí se puede calcular, y da exactamente cero."
+  },
+  {
+    tag:"Electricidad",
+    q:"¿Cuál es la definición correcta de corriente eléctrica?",
+    options:["La energía eléctrica almacenada por unidad de volumen.","La cantidad de carga que atraviesa una sección por unidad de tiempo.","La fuerza ejercida sobre una carga dentro de un campo eléctrico.","La velocidad individual de los electrones en un conductor."],
+    correct:1,
+    exp:"La corriente eléctrica se define matemáticamente como I = ΔQ / Δt: la cantidad de carga (Q, en Coulombs) que atraviesa una sección transversal de un conductor por cada unidad de tiempo (t, en segundos). Su unidad en el Sistema Internacional es el Amperio, donde 1 A = 1 C/s. La opción (a) describe algo parecido a una densidad de energía, no a corriente. La opción (c) describe la fuerza eléctrica (relacionada con el campo eléctrico, F = qE), un concepto distinto. La opción (d) confunde corriente con la velocidad de arrastre de los electrones individuales, que en realidad es muy lenta (del orden de mm/s) y no es lo mismo que la corriente, que depende de cuántos electrones pasan por segundo, no de su velocidad individual."
+  },
+  {
+    tag:"Calorimetría",
+    q:"Se agregan 250 g de hielo a 0 °C a 600 g de agua a 18 °C en un recipiente aislado. ¿Cómo se determina si queda hielo en el equilibrio?",
+    options:["Es imposible sin conocer el calor latente de fusión del hielo.","Comparando únicamente la masa de hielo y agua.","Usando solo la capacidad calorífica del agua.","Calculando y comparando el calor ganado por el hielo y el perdido por el agua."],
+    correct:3,
+    exp:"El método correcto es un balance de energía: se calcula el calor máximo que el agua puede ceder al enfriarse hasta 0 °C, y se compara con el calor que necesitaría el hielo para fundirse completamente. Q_cedido por el agua = m·c·ΔT = (600 g)(1 cal/g°C)(18 °C) = 10 800 cal. Q_necesario para fundir todo el hielo = m·L_f = (250 g)(80 cal/g) = 20 000 cal. Como el calor disponible (10 800 cal) es menor que el necesario para fundir todo el hielo (20 000 cal), el agua se enfría hasta 0 °C, funde solo una parte del hielo (250 g × 10800/20000 ≈ 135 g), y el sistema queda en equilibrio a 0 °C con hielo y agua coexistiendo. La opción (a) es incorrecta porque sí es posible resolverlo, precisamente usando el calor latente. Las opciones (b) y (c) son insuficientes porque ignoran, respectivamente, el calor latente de fusión y el calor específico combinado con las masas reales."
+  },
+  {
+    tag:"Trabajo y Energía",
+    q:"La energía mecánica total de un sistema se define como:",
+    options:["El trabajo realizado por una partícula en una trayectoria cerrada.","La suma de la energía cinética y la energía potencial.","El producto del desplazamiento por la componente de la fuerza.","El trabajo realizado por una fuerza variable."],
+    correct:1,
+    exp:"Por definición, E_m = K + U, donde K = ½mv² es la energía cinética asociada al movimiento del cuerpo, y U es la energía potencial (gravitatoria, elástica, u otra) asociada a su posición dentro de un campo de fuerzas conservativas. En ausencia de fuerzas disipativas como la fricción, esta suma se conserva a lo largo del movimiento, aunque K y U puedan transformarse una en la otra. La opción (a) describe una propiedad relacionada con fuerzas conservativas (el trabajo neto en una trayectoria cerrada es cero), pero no es la definición de energía mecánica. La opción (c) es en realidad la definición de trabajo, no de energía mecánica. La opción (d) también describe trabajo, no energía."
+  },
+  {
+    tag:"Cinemática",
+    q:"¿Cuál afirmación describe correctamente a una partícula en movimiento circular uniforme (MCU)?",
+    options:["Su rapidez es constante, su velocidad cambia y su aceleración apunta hacia el centro.","Su velocidad vectorial es constante porque su rapidez no cambia.","Su aceleración es nula porque no existe aceleración tangencial.","Su aceleración tiene siempre la misma dirección que su velocidad instantánea."],
+    correct:0,
+    exp:"En el MCU la magnitud de la velocidad (rapidez) permanece constante, pero la velocidad es un vector, y su dirección cambia continuamente porque la partícula va girando. Un cambio de dirección, aunque no cambie la magnitud, sí es un cambio del vector velocidad, y por definición eso implica una aceleración: la aceleración centrípeta, que apunta siempre hacia el centro de la circunferencia y es responsable de curvar la trayectoria. La opción (b) confunde rapidez (escalar) con velocidad (vectorial): que la rapidez sea constante no implica que la velocidad lo sea. La opción (c) es incorrecta porque, si bien no hay aceleración tangencial en un MCU (por eso es 'uniforme'), sí existe aceleración centrípeta, que es perpendicular a la velocidad, no nula. La opción (d) es físicamente imposible en este contexto: la aceleración centrípeta es siempre perpendicular a la velocidad instantánea, nunca paralela a ella."
+  },
+  {
+    tag:"Electricidad",
+    q:"La resistencia eléctrica de un conductor depende directamente de:",
+    options:["Su longitud y la resistividad del material.","Su área transversal y la corriente aplicada.","El voltaje de la fuente únicamente.","La cantidad total de carga almacenada."],
+    correct:0,
+    exp:"La segunda ley de Ohm da la fórmula R = ρ·(L/A), donde ρ es la resistividad (una propiedad intrínseca del material), L es la longitud del conductor y A es su área transversal. De esta fórmula se deduce que la resistencia es directamente proporcional a la longitud L y a la resistividad ρ del material, pero inversamente proporcional al área transversal A (a mayor área, menor resistencia, no mayor). Por eso la opción (b) es incorrecta: menciona el área transversal pero de forma directa (cuando en realidad es inversa), y además incluye la corriente, que no determina la resistencia del conductor (la resistencia es una propiedad geométrica y material, independiente de la corriente que circule, para un conductor óhmico). Las opciones (c) y (d) no tienen relación con la fórmula de resistencia: el voltaje y la carga almacenada son magnitudes distintas del circuito, no propiedades del conductor en sí."
+  },
+  {
+    tag:"Electricidad",
+    q:"¿Qué representa una superficie equipotencial?",
+    options:["Una superficie en la que el campo eléctrico es siempre cero.","Una trayectoria seguida necesariamente por las cargas eléctricas.","Una superficie cuyos puntos poseen el mismo potencial eléctrico.","Una superficie paralela a las líneas de campo eléctrico."],
+    correct:2,
+    exp:"Una superficie equipotencial es el lugar geométrico de todos los puntos que tienen exactamente el mismo valor de potencial eléctrico (voltaje). Una consecuencia importante de esto es que mover una carga de un punto a otro dentro de la misma superficie equipotencial no requiere trabajo eléctrico, porque el trabajo depende de la diferencia de potencial (W = qΔV), y ΔV = 0 dentro de la superficie. La opción (a) es incorrecta porque el campo eléctrico no tiene que ser cero sobre una superficie equipotencial (de hecho, suele ser distinto de cero, solo que es siempre perpendicular a la superficie). La opción (b) confunde superficie equipotencial con línea de campo, que sí describe la trayectoria que seguiría una carga positiva libre. La opción (d) es justo lo contrario de la relación real: las superficies equipotenciales son siempre perpendiculares a las líneas de campo eléctrico, no paralelas."
+  },
+  {
+    tag:"Trabajo y Energía",
+    q:"¿En cuál situación el trabajo realizado por una fuerza es negativo?",
+    options:["Cuando la fuerza tiene la misma dirección que el desplazamiento.","Cuando la fuerza es perpendicular al desplazamiento.","Cuando la fuerza tiene dirección opuesta al desplazamiento.","Cuando el objeto permanece en reposo."],
+    correct:2,
+    exp:"En la fórmula W = F·d·cos(θ), el signo del trabajo depende exclusivamente del ángulo θ entre la fuerza y el desplazamiento. Cuando la fuerza se opone al movimiento (θ = 180°), cos(180°) = -1, por lo que el trabajo resulta negativo: la fuerza está quitando energía cinética al cuerpo en lugar de dársela. El ejemplo clásico es la fricción, que siempre actúa en sentido opuesto al movimiento y por eso realiza trabajo negativo, frenando al objeto. La opción (a) da trabajo positivo (cos 0° = 1). La opción (b) da trabajo cero (cos 90° = 0), como en el caso de la fuerza centrípeta en el MCU. La opción (d) también da trabajo cero, porque si el objeto no se desplaza (d=0), el producto completo es cero, no negativo."
+  },
+  {
+    tag:"Dinámica",
+    q:"Una fuerza débil se aplica sobre una caja, que permanece en reposo sobre la superficie. En esta condición existe una fricción:",
+    options:["Estática.","Cinética.","Nula.","Dinámica máxima."],
+    correct:0,
+    exp:"Mientras el cuerpo permanece en reposo a pesar de que se le aplica una fuerza, la fricción presente es la fricción estática, que se ajusta automáticamente en magnitud para equilibrar exactamente la fuerza aplicada (f_s = F_aplicada), siempre que esta no supere el valor máximo posible f_s_max = μ_s·N. Solo cuando la fuerza aplicada supera ese máximo, el cuerpo comienza a deslizarse y entra en juego la fricción cinética (b), que actúa mientras hay movimiento relativo entre las superficies. La opción (c) es incorrecta porque sí existe fricción (es la que impide el movimiento); si no hubiera ninguna fricción, la caja se movería ante cualquier fuerza, por pequeña que fuera. La opción (d) 'dinámica máxima' no es un término estándar en este contexto."
+  },
+  {
+    tag:"Torque · Problema",
+    q:"Una barra horizontal pivota en P. A 3 m a la izquierda actúa una fuerza de 6 N hacia abajo; a 5 m a la derecha actúa una fuerza de 5 N hacia arriba. Ambas generan giro antihorario. ¿Cuál es el torque neto respecto a P?",
+    options:["+7 N·m","+43 N·m","-43 N·m","+11 N·m"],
+    correct:1,
+    exp:"El torque se calcula como τ = F·d, y su signo depende del sentido de giro que produce (convención: antihorario positivo, horario negativo). Para la fuerza F₁ = 6 N a 3 m a la izquierda del pivote, empujando hacia abajo: al estar a la izquierda y empujar hacia abajo, tiende a girar la barra en sentido antihorario, por lo que τ₁ = +(6 N)(3 m) = +18 N·m. Para la fuerza F₂ = 5 N a 5 m a la derecha del pivote, empujando hacia arriba: al estar a la derecha y empujar hacia arriba, también tiende a girar en sentido antihorario, por lo que τ₂ = +(5 N)(5 m) = +25 N·m. Como ambos torques tienen el mismo signo (ambos antihorarios), se suman en lugar de restarse: τ_neto = τ₁ + τ₂ = 18 + 25 = +43 N·m. El resultado positivo confirma que la barra tiende a girar en sentido antihorario. Un error común (que lleva a +7 N·m) sería restar los torques asumiendo que tienen sentidos opuestos, sin verificar cuidadosamente el sentido de giro que produce cada fuerza según su posición y dirección."
+  },
+  {
+    tag:"MCUA · Problema",
+    q:"Un objeto parte del reposo en MCUA con radio r = 1.5 m y completa una vuelta en t = 0.5 s. ¿Cuál es su velocidad angular ω en ese instante?",
+    options:["2π rad/s","4π rad/s ≈ 12.57 rad/s","π rad/s","8π rad/s"],
+    correct:1,
+    exp:"La velocidad angular promedio (y en este caso, la velocidad angular alcanzada al completar la vuelta partiendo del reposo con aceleración angular constante) se calcula como ω = Δθ / t, donde Δθ es el ángulo recorrido en radianes. Una vuelta completa equivale a 2π radianes. Sustituyendo: ω = 2π rad / 0.5 s = 4π rad/s ≈ 12.57 rad/s. Este valor representa la rapidez angular en el instante final del intervalo, coherente con un movimiento que parte del reposo y acelera uniformemente. Las otras opciones surgen de errores típicos: 2π rad/s olvida dividir por el tiempo correctamente (equivale a asumir t=1 s), y π rad/s u 8π rad/s resultan de manipular mal el factor 2 del ángulo o el 0.5 del tiempo."
+  },
+  {
+    tag:"MCUA · Problema",
+    q:"Con ω = 4π rad/s y r = 1.5 m, ¿cuál es la aceleración centrípeta a_c del objeto?",
+    options:["≈ 75.40 m/s²","≈ 18.85 m/s²","≈ 236.87 m/s²","≈ 12.57 m/s²"],
+    correct:2,
+    exp:"La aceleración centrípeta se calcula con la fórmula a_c = ω²·r (equivalente a a_c = v²/r). Sustituyendo los valores: a_c = (4π rad/s)² × 1.5 m = 16π² × 1.5 = 24π² m/s². Numéricamente, π² ≈ 9.87, por lo que a_c ≈ 24 × 9.87 ≈ 236.87 m/s². Es un valor grande porque la velocidad angular es alta (una vuelta completa en solo medio segundo) y la aceleración centrípeta crece con el cuadrado de ω. La opción ≈75.40 m/s² corresponde en realidad a la aceleración tangencial (a_t = α·r) de este mismo problema, no a la centrípeta; la opción ≈18.85 m/s² corresponde numéricamente a la velocidad tangencial v = ω·r (en m/s, no m/s²); y ≈12.57 m/s² es el valor numérico de ω, no de una aceleración. Es un buen recordatorio de revisar siempre las unidades al comparar resultados."
+  },
+  {
+    tag:"Resistencias",
+    q:"En el código de colores de resistencias, ¿qué representa la 4ª banda en una resistencia de 5 bandas?",
+    options:["La tolerancia.","El multiplicador (potencia de 10).","El coeficiente de temperatura.","La tercera cifra significativa."],
+    correct:1,
+    exp:"En una resistencia de 5 bandas, la estructura estándar es: banda 1 = primera cifra significativa, banda 2 = segunda cifra significativa, banda 3 = tercera cifra significativa, banda 4 = multiplicador (la potencia de 10 por la que se multiplican las tres cifras anteriores), y banda 5 = tolerancia (el margen de error del valor nominal, típicamente dorado ±5% o plata ±10%). Por eso la 4ª banda es el multiplicador, no la tolerancia (que es la banda 5, opción a) ni la tercera cifra (que es la banda 3, opción d). El 'coeficiente de temperatura' (c) aparece solo en resistencias de precisión de 6 bandas, y no corresponde a la posición 4 en el estándar de 5 bandas."
+  },
+  {
+    tag:"Resistencias",
+    resistorBands:["#d64545","#8b3fd6","#1a1a1a","#3f6fd6","#d4af37"],
+    q:"Observa la resistencia de la imagen (5 bandas: Rojo, Violeta, Negro, Azul, Dorado). ¿Qué valor representa?",
+    options:["27 kΩ ± 5%","270 MΩ ± 5%","270 kΩ ± 10%","27 MΩ ± 5%"],
+    correct:1,
+    exp:"Para leer una resistencia de 5 bandas se toman las tres primeras como cifras significativas y la cuarta como multiplicador. Rojo = 2, Violeta = 7, Negro = 0, formando el número base 270. La cuarta banda, Azul, corresponde al multiplicador ×10⁶. Entonces el valor nominal es R = 270 × 10⁶ Ω = 270 000 000 Ω = 270 MΩ. La quinta banda, Dorado, indica la tolerancia de fabricación: ±5% sobre ese valor nominal. Las opciones erróneas surgen de confundir el multiplicador (27 kΩ usaría ×10³, que sería Naranja, no Azul) o la tolerancia (270 kΩ ±10% mezcla mal el multiplicador y usa la tolerancia de Plata en vez de Dorado)."
+  },
+  {
+    tag:"Resistencias",
+    resistorBands:["#8b5a2b","#1a1a1a","#d64545","#d4af37"],
+    q:"Observa la resistencia de la imagen (4 bandas: Marrón, Negro, Rojo, Dorado). ¿Qué valor representa?",
+    options:["10 Ω ± 5%","1 kΩ ± 5%","100 Ω ± 10%","10 kΩ ± 5%"],
+    correct:1,
+    exp:"En una resistencia de 4 bandas, las dos primeras son cifras significativas, la tercera es el multiplicador, y la cuarta es la tolerancia. Marrón = 1, Negro = 0, formando el número base 10. La tercera banda, Rojo, corresponde al multiplicador ×10². Entonces R = 10 × 10² Ω = 10 × 100 = 1000 Ω = 1 kΩ. La cuarta banda, Dorado, indica ±5% de tolerancia. El error más común aquí es olvidar que solo hay dos cifras significativas (no tres, como en la de 5 bandas) antes del multiplicador, lo que llevaría a confundir el resultado con 100 Ω si se aplicara mal el multiplicador, o con 10 kΩ si se usara ×10³ en lugar de ×10² (que correspondería al color Naranja, no Rojo)."
+  },
+  {
+    tag:"Resistencias",
+    resistorBands:["#e8b34a","#8b5a2b","#1a1a1a","#c8c8c8","#c05050"],
+    q:"Observa la resistencia de la imagen (5 bandas: Amarillo, Marrón, Negro, Plata, Rojo). ¿Qué valor representa?",
+    options:["41 Ω ± 2%","4.1 Ω ± 2%","410 Ω ± 5%","4.1 kΩ ± 2%"],
+    correct:1,
+    exp:"Con Amarillo = 4, Marrón = 1, Negro = 0, se forma el número base 410. La cuarta banda, Plata, es un multiplicador especial que representa ×10⁻², es decir, se divide entre 100. Entonces R = 410 × 0.01 = 4.1 Ω. Este es un caso importante porque los multiplicadores Dorado (×10⁻¹) y Plata (×10⁻²) se usan específicamente para resistencias de muy bajo valor, menores a 10 Ω, algo poco intuitivo si se está acostumbrado a multiplicadores que agrandan el número. La quinta banda, Rojo, en la posición de tolerancia indica ±2% (una tolerancia más ajustada que el Dorado o Plata habituales). El distractor 410 Ω ±5% surge de ignorar que Plata reduce el valor en vez de aumentarlo, y 41 Ω surgiría de un error aritmético al aplicar el multiplicador."
+  },
+  {
+    tag:"Resistencias",
+    resistorBands:["#3f6fd6","#8b5a2b","#e8b34a","#d4af37"],
+    q:"Observa la resistencia de la imagen (4 bandas: Azul, Marrón, Amarillo, Dorado). ¿Qué valor representa?",
+    options:["61 kΩ ± 5%","610 kΩ ± 5%","6.1 MΩ ± 5%","61 MΩ ± 5%"],
+    correct:1,
+    exp:"Azul = 6, Marrón = 1, formando el número base 61. La tercera banda, Amarillo, es el multiplicador ×10⁴. Entonces R = 61 × 10⁴ Ω = 610 000 Ω = 610 kΩ. La cuarta banda, Dorado, indica ±5% de tolerancia. Este ejercicio ayuda a distinguir bien la secuencia de multiplicadores: Negro=×10⁰, Marrón=×10¹, Rojo=×10², Naranja=×10³, Amarillo=×10⁴, Verde=×10⁵, Azul=×10⁶. Confundir Amarillo (×10⁴) con Verde (×10⁵) o con Azul (×10⁶) es el error más frecuente al leer este tipo de resistencias, y produciría los resultados incorrectos de 6.1 MΩ o 61 MΩ que aparecen como distractores."
+  },
+  {
+    tag:"Resistencias",
+    resistorBands:["#3a8a4a","#3f6fd6","#8b5a2b","#c8c8c8"],
+    q:"Observa la resistencia de la imagen (4 bandas: Verde, Azul, Marrón, Plata). ¿Qué valor representa?",
+    options:["560 Ω ± 10%","56 Ω ± 10%","5.6 kΩ ± 10%","560 Ω ± 5%"],
+    correct:0,
+    exp:"Verde = 5, Azul = 6, formando el número base 56. La tercera banda, Marrón, es el multiplicador ×10¹. Entonces R = 56 × 10¹ Ω = 560 Ω. La cuarta banda, Plata, indica una tolerancia de ±10% (a diferencia del Dorado, que indica ±5%). Este ejercicio combina dos posibles errores frecuentes: confundir el multiplicador Marrón (×10¹) con Negro (×10⁰, que daría 56 Ω sin multiplicar), y confundir la tolerancia Plata (±10%) con Dorado (±5%), que son los dos colores de tolerancia más comunes y suelen confundirse por estar frecuentemente uno junto al otro en la memoria del estudiante."
+  },
+  {
+    tag:"Resistencias",
+    q:"¿Cuál es el multiplicador correspondiente al color Verde en el código de colores?",
+    options:["×10³","×10⁴","×10⁵","×10⁶"],
+    correct:2,
+    exp:"La secuencia completa de colores y sus valores/multiplicadores sigue este orden fijo: Negro=0 (×10⁰), Marrón=1 (×10¹), Rojo=2 (×10²), Naranja=3 (×10³), Amarillo=4 (×10⁴), Verde=5 (×10⁵), Azul=6 (×10⁶), Violeta=7 (×10⁷), Gris=8 (×10⁸), Blanco=9 (×10⁹). Como el dígito asociado al Verde es 5, su multiplicador correspondiente es ×10⁵ (10 elevado al mismo número que representa el color como cifra). Memorizar esta correspondencia dígito-multiplicador (el multiplicador siempre es 10 elevado al valor numérico del color) evita tener que memorizar dos tablas separadas."
+  },
+  {
+    tag:"Resistencias",
+    q:"Si la banda de tolerancia de una resistencia es de color Dorado, ¿qué porcentaje de tolerancia indica?",
+    options:["±1%","±2%","±5%","±10%"],
+    correct:2,
+    exp:"En la banda de tolerancia, cada color tiene un porcentaje fijo asociado: Marrón=±1%, Rojo=±2%, Dorado=±5%, y Plata=±10% (estos dos últimos son los más comunes en resistencias de uso general, mientras que Marrón y Rojo suelen verse en resistencias de precisión de 5 y 6 bandas). El Dorado indica que el valor real de la resistencia puede desviarse hasta un 5% por encima o por debajo del valor nominal calculado a partir de las bandas de color, un margen aceptable para la mayoría de aplicaciones electrónicas no críticas."
+  },
+  {
+    tag:"Resistencias",
+    resistorBands:["#1a1a1a","#8b5a2b","#e8b34a","#d4af37"],
+    q:"Observa la resistencia de la imagen (4 bandas: Negro, Marrón, Amarillo, Dorado). ¿Qué valor representa?",
+    options:["1 kΩ ± 5%","10 kΩ ± 5%","100 Ω ± 5%","1 MΩ ± 5%"],
+    correct:0,
+    exp:"Negro = 0, Marrón = 1, formando el número base 01, es decir, 1. La tercera banda, Amarillo, es el multiplicador ×10⁴. Entonces R = 1 × 10⁴ Ω = 10 000 Ω... pero aquí hay un matiz importante: cuando la primera cifra significativa es Negro (0), el número de dos cifras es simplemente el valor de la segunda banda, en este caso 1. Recalculando con cuidado: dígitos = '0' y '1' forman el número '01' = 1. R = 1 × 10⁴ = 10 000 Ω = 10 kΩ. La banda de tolerancia Dorado indica ±5%. Este caso ilustra por qué es clave leer las bandas en el orden correcto empezando por el extremo que NO tiene la banda de tolerancia (usualmente dorada o plateada, que suele estar más separada de las demás); si se leyeran al revés, el resultado cambiaría por completo."
+  }
+];
+</script>
+<script>
+// ---------------------------------------------------------------
+// STATE
+// ---------------------------------------------------------------
+let order = [];
+let current = 0;
+let score = 0;
+let answered = false;
+let userAnswers = [];
+
+function shuffle(arr){
+  const a = arr.slice();
+  for(let i=a.length-1;i>0;i--){
+    const j = Math.floor(Math.random()*(i+1));
+    [a[i],a[j]]=[a[j],a[i]];
+  }
+  return a;
+}
+
+function startQuiz(){
+  order = shuffle(questions.map((_,i)=>i));
+  current = 0;
+  score = 0;
+  userAnswers = [];
+  document.getElementById('startScreen').style.display='none';
+  document.getElementById('resultScreen').style.display='none';
+  document.getElementById('quizArea').style.display='block';
+  renderQuestion();
+}
+
+function resistorSvg(colors){
+  const bandsHtml = colors.map(c=>`<div class="band" style="background:${c}"></div>`).join('');
+  return `<div class="resistor-wrap"><div class="resistor">
+    <div class="lead"></div>
+    <div class="body-r">${bandsHtml}</div>
+    <div class="lead"></div>
+  </div></div>`;
+}
+
+function renderQuestion(){
+  answered = false;
+  const qIndex = order[current];
+  const item = questions[qIndex];
+  const host = document.getElementById('cardsHost');
+
+  document.getElementById('progressText').textContent = `Pregunta ${current+1} de ${order.length}`;
+  document.getElementById('scoreText').textContent = `Puntaje: ${score}`;
+  document.getElementById('fillBar').style.width = `${(current/order.length)*100}%`;
+
+  let optsHtml = item.options.map((opt,i)=>`
+    <button class="opt" data-idx="${i}" onclick="selectOption(${i})">
+      <span class="letter">${String.fromCharCode(97+i)})</span><span>${opt}</span>
+    </button>
+  `).join('');
+
+  host.innerHTML = `
+    <div class="card active">
+      <span class="tag">${item.tag}</span>
+      <div class="qtext">${item.q}</div>
+      ${item.resistorBands ? resistorSvg(item.resistorBands) : ''}
+      <div class="options" id="optionsHost">${optsHtml}</div>
+      <div class="feedback" id="feedbackHost"></div>
+      <div class="nav-row"><button class="next-btn" id="nextBtn" onclick="nextQuestion()">Siguiente →</button></div>
+    </div>
+  `;
+}
+
+function selectOption(idx){
+  if(answered) return;
+  answered = true;
+  const qIndex = order[current];
+  const item = questions[qIndex];
+  const opts = document.querySelectorAll('#optionsHost .opt');
+  const isCorrect = idx === item.correct;
+  if(isCorrect) score++;
+
+  opts.forEach((el,i)=>{
+    el.classList.add('disabled');
+    if(i === item.correct) el.classList.add('correct');
+    if(i === idx && !isCorrect) el.classList.add('wrong');
+  });
+
+  const fb = document.getElementById('feedbackHost');
+  fb.innerHTML = `
+    <span class="verdict ${isCorrect?'ok':'bad'}">${isCorrect ? '✓ Correcto.' : '✗ Incorrecto. La respuesta correcta es: "'+item.options[item.correct]+'"'}</span>
+    <span class="why-title">Explicación</span>
+    ${item.exp}
+  `;
+  fb.classList.add('show');
+
+  document.getElementById('scoreText').textContent = `Puntaje: ${score}`;
+  document.getElementById('nextBtn').classList.add('show');
+
+  userAnswers.push({
+    tag:item.tag, q:item.q,
+    chosenText:item.options[idx],
+    correctText:item.options[item.correct],
+    isCorrect
+  });
+}
+
+function nextQuestion(){
+  if(current < order.length - 1){
+    current++;
+    renderQuestion();
+  } else {
+    showResults();
+  }
+}
+
+function showResults(){
+  document.getElementById('quizArea').style.display='none';
+  const total = order.length;
+  const pct = Math.round((score/total)*100);
+  const pass = pct >= 70;
+  const nota20 = (score/total*20).toFixed(1);
+
+  const reviewHtml = userAnswers.map(a=>`
+    <div class="review-item ${a.isCorrect?'ok':'bad'}">
+      <div class="rq">${a.q}</div>
+      ${a.isCorrect
+        ? `<div class="rcorrect">Tu respuesta: ${a.correctText}</div>`
+        : `<div class="ryour">Tu respuesta: ${a.chosenText}</div><div class="rcorrect">Correcta: ${a.correctText}</div>`
+      }
+    </div>
+  `).join('');
+
+  document.getElementById('resultScreen').innerHTML = `
+    <div class="score-label">Resultado final</div>
+    <div class="score-big ${pass?'pass':'fail'}">${pct}%</div>
+    <p>${pass ? 'Aprobado. Buen manejo de los temas del examen.' : 'No alcanzaste el mínimo de aprobación. Revisa los temas fallados antes del examen.'}</p>
+    <div class="stats-grid">
+      <div class="stat"><div class="num" style="color:var(--green)">${score}</div><div class="lab">Correctas</div></div>
+      <div class="stat"><div class="num" style="color:var(--red)">${total-score}</div><div class="lab">Incorrectas</div></div>
+      <div class="stat"><div class="num" style="color:var(--amber)">${nota20}</div><div class="lab">Nota / 20</div></div>
+    </div>
+    <button class="restart-btn" onclick="location.reload()">Reintentar simulacro</button>
+    <div class="review">${reviewHtml}</div>
+  `;
+  document.getElementById('resultScreen').style.display='block';
+}
+</script>
+</body>
+</html>
